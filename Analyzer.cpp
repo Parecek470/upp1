@@ -1,6 +1,9 @@
 #include "Analyzer.h"
+#include "AppConfig.h"
 #include <algorithm>
 #include <cfloat>
+#include <omp.h>
+#include <algorithm>
 
 
 struct MonthlyData {
@@ -8,7 +11,9 @@ struct MonthlyData {
 	int count = 0;
 };
 
-std::pair<float, float> computeGlobalMinMax(const std::vector<StationData>& dataset) {
+
+
+static std::pair<float, float> computeGlobalMinMaxSerial(const std::vector<StationData>& dataset) {
 	std::pair<float, float> result = { FLT_MAX, -FLT_MAX };
 	for (const auto& sd : dataset) {
 		for (const auto& m : sd.measurements) {
@@ -19,9 +24,41 @@ std::pair<float, float> computeGlobalMinMax(const std::vector<StationData>& data
 	return result;
 }
 
+static std::pair<float, float> computeGlobalMinMaxParallel(const std::vector<StationData>& dataset) {
+	float globalMin = FLT_MAX;
+	float globalMax = -FLT_MAX;
+
+#pragma omp parallel
+	{
+		float localMin = FLT_MAX;
+		float localMax = -FLT_MAX;
+
+#pragma omp for schedule(static)
+		for (int i = 0; i < (int)dataset.size(); i++) {
+			for (const auto& m : dataset[i].measurements) {
+				if (m.value < localMin) localMin = m.value;
+				if (m.value > localMax) localMax = m.value;
+			}
+		}
+
+#pragma omp critical
+		{
+			if (localMin < globalMin) globalMin = localMin;
+			if (localMax > globalMax) globalMax = localMax;
+		}
+	}
+	return { globalMin, globalMax };
+}
 
 
-std::unordered_map<int, float> calculateMonthlyAverages(const StationData& sd) {
+std::pair<float, float> computeGlobalMinMax(const std::vector<StationData>& dataset, RunMode mode) {
+	if (mode == RunMode::Parallel)
+		return computeGlobalMinMaxParallel(dataset);
+	else
+		return computeGlobalMinMaxSerial(dataset);
+}
+
+static std::unordered_map<int, float> calculateMonthlyAverages(const StationData& sd) {
 	std::unordered_map<int, MonthlyData> monthlyData;
 	for (const auto& m : sd.measurements) {
 		int key = m.year * 100 + m.month;
@@ -36,10 +73,25 @@ std::unordered_map<int, float> calculateMonthlyAverages(const StationData& sd) {
 	return averages;
 }
 
+void calculateMonthlyAverages(std::vector<StationData>& dataset, RunMode mode) {
 
+	if (mode == RunMode::Parallel) {
+		int n = (int)dataset.size();
+#pragma omp parallel for schedule(static)
+		for (int i = 0; i < n; i++) {
+			auto& sd = dataset[i];
+			sd.monthlyAvg = calculateMonthlyAverages(sd);
+		}
+	}
+	else {
+		for (auto& sd : dataset) {
+			sd.monthlyAvg = calculateMonthlyAverages(sd);
+		}
+	}
+}
 
 std::vector<Anomaly> detectAnomalies(const StationData& sd, const std::unordered_map<int, float>& monthlyAvg) {
-	
+
 	// Find Min and Max avarage for each month
 	std::unordered_map<int, std::pair<float, float>> bounds; // key = month
 
@@ -83,3 +135,30 @@ std::vector<Anomaly> detectAnomalies(const StationData& sd, const std::unordered
 	}
 	return anomalies;
 }
+
+std::vector<Anomaly> detectAnomalies(const std::vector<StationData>& dataset, RunMode mode) {
+	std::vector<Anomaly> allAnomalies;
+	if (mode == RunMode::Parallel) {
+		int n = (int)dataset.size();
+		std::vector<std::vector<Anomaly>> threadResults(omp_get_max_threads());
+#pragma omp parallel for schedule(static)
+		for (int i = 0; i < n; i++) {
+			auto& sd = dataset[i];
+			auto anomalies = detectAnomalies(sd, sd.monthlyAvg);
+			auto& local = threadResults[omp_get_thread_num()];
+			local.insert(local.end(), anomalies.begin(), anomalies.end());
+		}
+		for (const auto& vec : threadResults) {
+			allAnomalies.insert(allAnomalies.end(), vec.begin(), vec.end());
+		}
+	}
+	else {
+		
+		for (auto& sd : dataset) {
+			auto anomalies = detectAnomalies(sd, sd.monthlyAvg);
+			allAnomalies.insert(allAnomalies.end(), anomalies.begin(), anomalies.end());
+		}
+	}
+	return allAnomalies;
+}
+

@@ -2,6 +2,7 @@
 #include <vector>
 #include <unordered_map>
 #include "Structs.h"
+#include "AppConfig.h"
 
 
 struct Anomaly {
@@ -11,6 +12,7 @@ struct Anomaly {
 	float difference;
 };
 
-std::pair<float, float> computeGlobalMinMax(const std::vector<StationData>& dataset);
-std::unordered_map<int, float> calculateMonthlyAverages(const StationData& sd);
-std::vector<Anomaly> detectAnomalies(const StationData& sd, const std::unordered_map<int, float>& monthlyAvg);
+
+std::pair<float, float> computeGlobalMinMax(const std::vector<StationData>& dataset, RunMode mode);
+void calculateMonthlyAverages(std::vector<StationData>& dataset, RunMode mode);
+std::vector<Anomaly> detectAnomalies(const std::vector<StationData>& dataset, RunMode mode);

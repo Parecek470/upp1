@@ -1,5 +1,7 @@
 #include <iostream>
 #include <chrono>
+#include <vector>
+#include <omp.h>
 #include "ArgParser.h"
 #include "DataLoader.h"
 #include "Filter.h"
@@ -26,9 +28,9 @@ int main(int argc, char* argv[])
 	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 	std::cout << "Loading stations took: " << ms << " ms\n";
 
-
+	
 	start = std::chrono::high_resolution_clock::now();
-	auto measurements = loadMeasurements(config.measurementsFileName);
+	auto measurements = loadMeasurements(config.measurementsFileName, config.mode);
 	end = std::chrono::high_resolution_clock::now();
 	
 	if (stations.empty()) {
@@ -48,22 +50,29 @@ int main(int argc, char* argv[])
 
 
 	start = std::chrono::high_resolution_clock::now();
-	dataset = filterStations(dataset);
+	dataset = filterStations(dataset, config.mode);
 	end = std::chrono::high_resolution_clock::now();
 	ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 	std::cout << "Filtering took: " << ms << " ms\n";
 
 
+	// Calculate monthly averages for each station
 
 	start = std::chrono::high_resolution_clock::now();
-	std::vector<Anomaly> allAnomalies;
-	for (auto& sd : dataset) {
-		sd.monthlyAvg = calculateMonthlyAverages(sd);
-		std::ranges::copy(detectAnomalies(sd, sd.monthlyAvg),std::back_inserter(allAnomalies));
-	}
+	calculateMonthlyAverages(dataset, config.mode);
+	end = std::chrono::high_resolution_clock::now();
+	ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+	std::cout << "Claclulating avarages took: " << ms << " ms\n";
+
+
+	// Identify anomalies
+	start = std::chrono::high_resolution_clock::now();
+	auto allAnomalies = detectAnomalies(dataset, config.mode);
 	end = std::chrono::high_resolution_clock::now();
 	ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 	std::cout << "Anomaly identification took: " << ms << " ms\n";
+
+
 
 	start = std::chrono::high_resolution_clock::now();
 	writeAnomalies(allAnomalies, "vykyvy.csv");
@@ -72,7 +81,7 @@ int main(int argc, char* argv[])
 	std::cout << "Anomaly writing took: " << ms << " ms\n";
 
 	start = std::chrono::high_resolution_clock::now();
-	auto globalMinMax = computeGlobalMinMax(dataset);
+	auto globalMinMax = computeGlobalMinMax(dataset, config.mode);
 	end = std::chrono::high_resolution_clock::now();
 	ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 	std::cout << "Global min and max calculation took: " << ms << " ms\n";
