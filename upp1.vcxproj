@@ -139,7 +139,27 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Analyzer.cpp" />
+    <ClCompile Include="ArgParser.cpp" />
+    <ClCompile Include="DataLoader.cpp" />
+    <ClCompile Include="Filter.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="OutputWriter.cpp" />
     <ClCompile Include="upp1.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Analyzer.h" />
+    <ClInclude Include="AppConfig.h" />
+    <ClInclude Include="ArgParser.h" />
+    <ClInclude Include="DataLoader.h" />
+    <ClInclude Include="Filter.h" />
+    <ClInclude Include="OutputWriter.h" />
+    <ClInclude Include="Structs.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="czmap.svg" />
+    <None Include="mereni.csv" />
+    <None Include="stanice.csv" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
