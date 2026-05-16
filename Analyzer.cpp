@@ -9,14 +9,14 @@ struct MonthlyData {
 };
 
 std::pair<float, float> computeGlobalMinMax(const std::vector<StationData>& dataset) {
-	std::pair<float, float> globalMinMax = { FLT_MAX, -FLT_MAX };
+	std::pair<float, float> result = { FLT_MAX, -FLT_MAX };
 	for (const auto& sd : dataset) {
-		for (const auto& m : sd.monthlyAvg) {
-			globalMinMax.first = std::min(m.second, globalMinMax.first);
-			globalMinMax.second = std::max(m.second, globalMinMax.second);
+		for (const auto& m : sd.measurements) {
+			result.first = std::min(m.value, result.first);
+			result.second = std::max(m.value, result.second);
 		}
 	}
-	return globalMinMax;
+	return result;
 }
 
 
@@ -40,7 +40,7 @@ std::unordered_map<int, float> calculateMonthlyAverages(const StationData& sd) {
 
 std::vector<Anomaly> detectAnomalies(const StationData& sd, const std::unordered_map<int, float>& monthlyAvg) {
 	
-	// Find Min and Max for each month
+	// Find Min and Max avarage for each month
 	std::unordered_map<int, std::pair<float, float>> bounds; // key = month
 
 	for (const auto& [key, avg] : monthlyAvg) {
@@ -81,4 +81,5 @@ std::vector<Anomaly> detectAnomalies(const StationData& sd, const std::unordered
 			}
 		}
 	}
+	return anomalies;
 }

@@ -3,6 +3,7 @@
 #include <sstream>
 #include <unordered_map>
 
+
 std::vector<Station> loadStations(const std::string& fileName) {
     std::ifstream file(fileName);
     if (!file.is_open()) {

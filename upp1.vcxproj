@@ -145,7 +145,6 @@
     <ClCompile Include="Filter.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="OutputWriter.cpp" />
-    <ClCompile Include="upp1.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Analyzer.h" />
@@ -158,8 +157,14 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="czmap.svg" />
-    <None Include="mereni.csv" />
-    <None Include="stanice.csv" />
+    <CopyFileToFolders Include="mereni.csv">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="stanice.csv">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <FileType>Document</FileType>
+    </CopyFileToFolders>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

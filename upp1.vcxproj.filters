@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="upp1.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ArgParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -64,11 +61,13 @@
     <None Include="czmap.svg">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="mereni.csv">
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="stanice.csv">
       <Filter>Resource Files</Filter>
-    </None>
-    <None Include="stanice.csv">
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="mereni.csv">
       <Filter>Resource Files</Filter>
-    </None>
+    </CopyFileToFolders>
   </ItemGroup>
 </Project>
