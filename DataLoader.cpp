@@ -191,7 +191,7 @@ static std::vector<StationData> buildDatasetParallel(
 		localMaps[tid][measurements[i].stationId].push_back(measurements[i]);
 	}
 
-	// Sériový merge pomocí move iterátorů
+	// Serial merge with move semantics to avoid copying
 	std::unordered_map<int, std::vector<Measurement>> merged;
 	for (auto& localMap : localMaps) {
 		for (auto& [id, vec] : localMap) {
@@ -204,7 +204,7 @@ static std::vector<StationData> buildDatasetParallel(
 		}
 	}
 
-	// Sestav dataset — stejná logika jako sériová verze
+	// Build dataset, same logic as serial version
 	std::vector<StationData> dataset;
 	dataset.reserve(stations.size());
 	for (const auto& s : stations) {
