@@ -8,5 +8,5 @@
 
 std::vector<Station> loadStations(const std::string& fileName);
 std::vector<Measurement> loadMeasurements(const std::string& fileName, RunMode mode);
-std::vector<StationData> buildDataset(const std::vector<Station>& stations, const std::vector<Measurement>& measurements);
+std::vector<StationData> buildDataset(const std::vector<Station>& stations, const std::vector<Measurement>& measurements, RunMode mode);
 

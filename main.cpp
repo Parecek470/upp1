@@ -8,81 +8,67 @@
 #include "Analyzer.h"
 #include "OutputWriter.h"
 
+static long long measure(auto&& fn) {
+    auto start = std::chrono::high_resolution_clock::now();
+    fn();
+    auto end = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+}
 
 int main(int argc, char* argv[])
 {
-	AppConfig config = parseArgs(argc, argv);
-	
+    AppConfig config = parseArgs(argc, argv);
 
-	auto start = std::chrono::high_resolution_clock::now();
-	auto stations = loadStations(config.stationsFileName);
-	auto end = std::chrono::high_resolution_clock::now();
-	if (stations.empty()) {
-		std::cout << "no stations";
-		exit(1);
-	}
-	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	std::cout << "Loading stations took: " << ms << " ms\n";
-	
-	start = std::chrono::high_resolution_clock::now();
-	auto measurements = loadMeasurements(config.measurementsFileName, config.mode);
-	end = std::chrono::high_resolution_clock::now();
-	if (measurements.empty()) {
-		std::cout << "no measurements";
-		exit(1);
-	}
-	ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	std::cout << "Loading measurements took: " << ms << " ms\n";
+    std::vector<Station> stations;
+    std::cout << "Loading stations took: "
+        << measure([&] { stations = loadStations(config.stationsFileName); })
+        << " ms\n";
+    if (stations.empty()) { std::cout << "no stations\n"; return 1; }
+
+    
+    std::vector<Measurement> measurements;
+    std::cout << "Loading measurements took: "
+        << measure([&] { measurements = loadMeasurements(config.measurementsFileName, config.mode); })
+        << " ms\n";
+    if (measurements.empty()) { std::cout << "no measurements\n"; return 1; }
 
 
-
-	start = std::chrono::high_resolution_clock::now();
-	auto dataset = buildDataset(stations, measurements);
-	end = std::chrono::high_resolution_clock::now();
-	ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	std::cout << "DataSet building took: " << ms << " ms\n";
-	
-
-	start = std::chrono::high_resolution_clock::now();
-	dataset = filterStations(dataset, config.mode);
-	end = std::chrono::high_resolution_clock::now();
-	ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	std::cout << "Filtering took: " << ms << " ms\n";
+    std::vector<StationData> dataset;
+    std::cout << "DataSet building took: "
+        << measure([&] { dataset = buildDataset(stations, measurements, config.mode); })
+        << " ms\n";
 
 
-	// Calculate monthly averages for each station
-
-	start = std::chrono::high_resolution_clock::now();
-	calculateMonthlyAverages(dataset, config.mode);
-	end = std::chrono::high_resolution_clock::now();
-	ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	std::cout << "Claclulating avarages took: " << ms << " ms\n";
+    std::cout << "Filtering took: "
+        << measure([&] { dataset = filterStations(dataset, config.mode); })
+        << " ms\n";
 
 
-	// Identify anomalies
-	start = std::chrono::high_resolution_clock::now();
-	auto allAnomalies = detectAnomalies(dataset, config.mode);
-	end = std::chrono::high_resolution_clock::now();
-	ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	std::cout << "Anomaly identification took: " << ms << " ms\n";
+    std::cout << "Calculating averages took: "
+        << measure([&] { calculateMonthlyAverages(dataset, config.mode); })
+        << " ms\n";
 
 
+    std::vector<Anomaly> allAnomalies;
+    std::cout << "Anomaly identification took: "
+        << measure([&] { allAnomalies = detectAnomalies(dataset, config.mode); })
+        << " ms\n";
 
-	start = std::chrono::high_resolution_clock::now();
-	writeAnomalies(allAnomalies, "vykyvy.csv");
-	end = std::chrono::high_resolution_clock::now();
-	ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	std::cout << "Anomaly writing took: " << ms << " ms\n";
 
-	start = std::chrono::high_resolution_clock::now();
-	auto globalMinMax = computeGlobalMinMax(dataset, config.mode);
-	end = std::chrono::high_resolution_clock::now();
-	ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	std::cout << "Global min and max calculation took: " << ms << " ms\n";
+    std::cout << "Anomaly writing took: "
+        << measure([&] { writeAnomalies(allAnomalies, "vykyvy.csv"); })
+        << " ms\n";
 
-	start = std::chrono::high_resolution_clock::now();
-	generateSVGs(dataset, globalMinMax, config.mode);
-	end = std::chrono::high_resolution_clock::now();
-	ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-	std::cout << "generation of svg took: " << ms << " ms\n";
+
+    std::pair<float,float> globalMinMax;
+    std::cout << "Global min and max calculation took: "
+        << measure([&] { globalMinMax = computeGlobalMinMax(dataset, config.mode); })
+        << " ms\n";
+
+
+    std::cout << "Generation of SVGs took: "
+        << measure([&] { generateSVGs(dataset, globalMinMax, config.mode); })
+        << " ms\n";
+
+    return 0;
 }

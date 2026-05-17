@@ -1,45 +1,37 @@
 #include "Filter.h"
 #include <algorithm>
+#include <map>
 #include <set>
 #include <omp.h>
 
-bool hasFiveContinuousYears(const StationData& sd) {
+static bool passesFilter(const StationData& sd) {
 	if (sd.measurements.empty()) return false;
-	
-	std::set<int> years;
-	for (const auto& m : sd.measurements) {
-		years.insert(m.year);
-	}
 
+	std::map<int, int> yearCount;
+	for (const auto& m : sd.measurements)
+		yearCount[m.year]++;
+
+	// check average readings per year >= 100
+	int totalReadings = (int)sd.measurements.size();
+	if ((double)totalReadings / (double)yearCount.size() < 100)
+		return false;
+
+	// check 5 continuous years
 	int count = 1;
-	for (auto it = years.begin(); it != years.end(); ++it) {
-		if (it != years.begin() && *it == *(std::prev(it)) + 1)
-		{
-			count++;
-			if (count >= 5) return true;
+	for (auto it = std::next(yearCount.begin()); it != yearCount.end(); ++it)
+		if (it->first == std::prev(it)->first + 1) {
+			if (++count >= 5) return true;
 		}
 		else {
 			count = 1;
 		}
-	}
 
 	return false;
 }
 
-bool hasEnoughReadingsPerYear(const StationData& sd) {
-	if (sd.measurements.empty()) return false;
-
-	std::set<int> years;
-	for (const auto& m : sd.measurements) {
-		years.insert(m.year);
-	}
-
-	return (double)sd.measurements.size() / (double)years.size() >= 100;
-}
-
 static std::vector<StationData> filterStationsSerial(std::vector<StationData> dataset) {
 	std::erase_if(dataset, [](const StationData& sd) {
-		return !hasFiveContinuousYears(sd) || !hasEnoughReadingsPerYear(sd);
+		return !passesFilter(sd);
 		});
 	return dataset;
 }
@@ -50,14 +42,19 @@ static std::vector<StationData> filterStationsParallel(const std::vector<Station
 
 #pragma omp parallel for schedule(static)
 	for (int i = 0; i < n; i++) {
-		if (hasFiveContinuousYears(dataset[i]) && hasEnoughReadingsPerYear(dataset[i])) {
+		if (passesFilter(dataset[i]))
 			threadResults[omp_get_thread_num()].push_back(dataset[i]);
-		}
 	}
 
+	size_t total = 0;
+	for (auto& vec : threadResults) total += vec.size();
+
 	std::vector<StationData> result;
+	result.reserve(total);
 	for (auto& vec : threadResults)
-		result.insert(result.end(), vec.begin(), vec.end());
+		result.insert(result.end(),
+			std::make_move_iterator(vec.begin()),
+			std::make_move_iterator(vec.end()));
 
 	return result;
 }

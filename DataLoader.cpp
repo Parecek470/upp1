@@ -172,12 +172,53 @@ std::vector<Measurement> loadMeasurements(const std::string& fileName, RunMode m
 	if (mode == RunMode::Parallel) {
 		return loadMeasurementsParallel(fileName);
 	}
-	else {
-		return loadMeasurementsSerial(fileName);
-	}
+	return loadMeasurementsSerial(fileName);
+	
 }
 
-std::vector<StationData> buildDataset(const std::vector<Station>& stations, const std::vector<Measurement>& measurements) {
+
+static std::vector<StationData> buildDatasetParallel(
+	const std::vector<Station>& stations,
+	const std::vector<Measurement>& measurements)
+{
+	int nThreads = omp_get_max_threads();
+
+	std::vector<std::unordered_map<int, std::vector<Measurement>>> localMaps(nThreads);
+
+#pragma omp parallel for schedule(static)
+	for (int i = 0; i < (int)measurements.size(); i++) {
+		int tid = omp_get_thread_num();
+		localMaps[tid][measurements[i].stationId].push_back(measurements[i]);
+	}
+
+	// Sériový merge pomocí move iterátorů
+	std::unordered_map<int, std::vector<Measurement>> merged;
+	for (auto& localMap : localMaps) {
+		for (auto& [id, vec] : localMap) {
+			auto& target = merged[id];
+			target.insert(
+				target.end(),
+				std::make_move_iterator(vec.begin()),
+				std::make_move_iterator(vec.end())
+			);
+		}
+	}
+
+	// Sestav dataset — stejná logika jako sériová verze
+	std::vector<StationData> dataset;
+	dataset.reserve(stations.size());
+	for (const auto& s : stations) {
+		auto it = merged.find(s.id);
+		std::vector<Measurement> ms;
+		if (it != merged.end()) {
+			ms = std::move(it->second);
+		}
+		dataset.push_back(StationData{ s, std::move(ms) });
+	}
+	return dataset;
+}
+
+static std::vector<StationData> buildDatasetSerial(const std::vector<Station>& stations, const std::vector<Measurement>& measurements) {
 	std::unordered_map<int, std::vector<Measurement>> byStation;
 	for (const auto& m : measurements) {
 		byStation[m.stationId].push_back(m);
@@ -195,4 +236,11 @@ std::vector<StationData> buildDataset(const std::vector<Station>& stations, cons
 		dataset.push_back(std::move(sd));
 	}
 	return dataset;
+}
+
+std::vector<StationData> buildDataset(const std::vector<Station>& stations, const std::vector<Measurement>& measurements, RunMode mode) {
+	if (mode == RunMode::Parallel) {
+		return buildDatasetParallel(stations, measurements);
+	}
+	return buildDatasetSerial(stations, measurements);
 }
