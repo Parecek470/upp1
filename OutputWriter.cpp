@@ -2,7 +2,13 @@
 #include <iostream>
 #include <format>
 #include <array>
+#include <omp.h>
 #include "OutputWriter.h"
+
+static const std::string monthNames[] = {
+	"", "leden", "unor", "brezen", "duben", "kveten", "cerven",
+	"cervenec", "srpen", "zari", "rijen", "listopad", "prosinec"
+};
 
 static const std::string mapPath = "czmap.svg";
 static const double latMin = 48.521003814763994;
@@ -69,11 +75,11 @@ void writeAnomalies(const std::vector<Anomaly>& anomalies, const std::string& fi
 	}
 }
 
-void generateSVG(const std::vector<StationData>& data, int month, std::pair<float, float> minMax, const std::string& outputPath) {
+static void generateSVG(const std::vector<StationData>& data, int month, std::pair<float, float> minMax, const std::string& outputPath) {
 	std::ofstream file(outputPath);
 	if (!file.is_open()) {
 		std::cerr << "cannot write map" << std::endl;
-		exit(1);
+		return;
 	}
 
 	file << svgHeaderOpenElement(minMax.first, minMax.second);
@@ -96,3 +102,16 @@ void generateSVG(const std::vector<StationData>& data, int month, std::pair<floa
 	file << "</svg>";
 }
 
+void generateSVGs(const std::vector<StationData>& data, std::pair<float, float> minMax, RunMode mode) {
+	if (mode == RunMode::Parallel) {
+#pragma omp parallel for schedule(static)
+		for (int month = 1; month <= 12; month++) {
+			generateSVG(data, month, minMax, monthNames[month] + ".svg");
+		}
+	}
+	else {
+		for (int month = 1; month <= 12; month++) {
+			generateSVG(data, month, minMax, monthNames[month] + ".svg");
+		}
+	}
+}

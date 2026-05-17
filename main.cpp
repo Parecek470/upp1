@@ -8,10 +8,6 @@
 #include "Analyzer.h"
 #include "OutputWriter.h"
 
-static const std::string monthNames[] = {
-	"", "leden", "unor", "brezen", "duben", "kveten", "cerven",
-	"cervenec", "srpen", "zari", "rijen", "listopad", "prosinec"
-};
 
 int main(int argc, char* argv[])
 {
@@ -27,13 +23,11 @@ int main(int argc, char* argv[])
 	}
 	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 	std::cout << "Loading stations took: " << ms << " ms\n";
-
 	
 	start = std::chrono::high_resolution_clock::now();
 	auto measurements = loadMeasurements(config.measurementsFileName, config.mode);
 	end = std::chrono::high_resolution_clock::now();
-	
-	if (stations.empty()) {
+	if (measurements.empty()) {
 		std::cout << "no measurements";
 		exit(1);
 	}
@@ -47,7 +41,7 @@ int main(int argc, char* argv[])
 	end = std::chrono::high_resolution_clock::now();
 	ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 	std::cout << "DataSet building took: " << ms << " ms\n";
-
+	
 
 	start = std::chrono::high_resolution_clock::now();
 	dataset = filterStations(dataset, config.mode);
@@ -87,9 +81,7 @@ int main(int argc, char* argv[])
 	std::cout << "Global min and max calculation took: " << ms << " ms\n";
 
 	start = std::chrono::high_resolution_clock::now();
-	for (int month = 1; month <= 12; month++) {
-		generateSVG(dataset,month, globalMinMax, monthNames[month] + ".svg");
-	}
+	generateSVGs(dataset, globalMinMax, config.mode);
 	end = std::chrono::high_resolution_clock::now();
 	ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 	std::cout << "generation of svg took: " << ms << " ms\n";
